@@ -21,8 +21,8 @@ git config user.email "${GIT_AUTHOR_EMAIL}"
 [ -n "${OWNER}" ] || fail "Could not determine GitHub owner from GITHUB_REPOSITORY."
 [ -n "${REPO}" ] || fail "Could not determine GitHub repo from GITHUB_REPOSITORY."
 
-# Fetch the SHAs from the pull requests that are marked with $PULL_REQUEST_LABEL.
-readarray -t shas < <(
+# Fetch the SHAs and branch names from the pull requests that are marked with $PULL_REQUEST_LABEL.
+readarray -t pr_data < <(
   jq -cn '
     {
       query: $query,
@@ -38,6 +38,7 @@ readarray -t shas < <(
           pullRequests(states: OPEN, labels: [$pull_request_label], first: 100) {
             nodes {
               headRefOid
+              headRefName
             }
           }
         }
@@ -53,14 +54,30 @@ readarray -t shas < <(
       --header "Content-Type: application/json" \
       --data @- \
       https://api.github.com/graphql |
-    jq -r '.data.repository.pullRequests.nodes | .[].headRefOid'
+    jq -r '.data.repository.pullRequests.nodes | .[] | .headRefOid + " " + .headRefName'
 )
 
 # Do not attempt to merge if there are no pull requests to be merged.
-if [ ${#shas[@]} -eq 0 ]; then
+if [ ${#pr_data[@]} -eq 0 ]; then
   echo "No pull requests with label $PULL_REQUEST_LABEL"
   exit 0
 fi
+
+# Extract SHAs and branch names
+shas=()
+branches=()
+for data in "${pr_data[@]}"; do
+  sha=$(echo "$data" | cut -d' ' -f1)
+  branch=$(echo "$data" | cut -d' ' -f2-)
+  shas+=("$sha")
+  branches+=("$branch")
+done
+
+# Create head.txt with the list of merged branches and their SHAs
+echo "master +" > head.txt
+for i in "${!branches[@]}"; do
+  printf "%s %s\n" "${branches[$i]}" "${shas[$i]}" >> head.txt
+done
 
 # Merge all shas together into one commit.
 git fetch origin "${shas[@]}"
