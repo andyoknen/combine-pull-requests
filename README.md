@@ -7,7 +7,7 @@ Not sure what to think of this? See [Use case](#Use case).
 ## Usage
 
 ```yml
-- uses: bobvanderlinden/combine-pull-requests@v4
+- uses: bobvanderlinden/combine-pull-requests@v5
   with:
     label: experiment
     repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -40,11 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' || github.event.label.name == 'experiment' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: master
           fetch-depth: 0
-      - uses: bobvanderlinden/combine-pull-requests@v4
+      - uses: bobvanderlinden/combine-pull-requests@v5
         with:
           label: experiment
           repo-token: ${{ secrets.GITHUB_TOKEN }}
